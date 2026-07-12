@@ -108,6 +108,111 @@ void setupBufferTextureUniforms(GLuint program) {
     GLES.glActiveTexture(GL_TEXTURE0 + prev_unit);
 }
 
+QuadConvBuf s_quad_conv;
+
+extern "C" void ensureQuadConvBuffer(GLsizeiptr needed) {
+    if (!s_quad_conv.ebo) {
+        GLES.glGenBuffers(1, &s_quad_conv.ebo);
+    }
+    if (needed > s_quad_conv.capacity) {
+        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_quad_conv.ebo);
+        GLES.glBufferData(GL_ELEMENT_ARRAY_BUFFER, needed, nullptr, GL_DYNAMIC_DRAW);
+        s_quad_conv.capacity = needed;
+    }
+}
+
+// Converts a GL_QUADS draw to GL_TRIANGLES for non-indexed draws
+extern "C" void drawArraysQuads(GLenum mode, GLint first, GLsizei count) {
+    if (count < 4 || (count % 4) != 0) return;
+    GLsizei quadCount = count / 4;
+    GLsizei triCount = quadCount * 6;
+    GLsizeiptr bufSize = triCount * sizeof(GLuint);
+
+    ensureQuadConvBuffer(bufSize);
+
+    void* mapped = GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, bufSize,
+                                          GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+    if (!mapped) return;
+
+    GLuint* out = (GLuint*)mapped;
+    for (GLsizei q = 0; q < quadCount; ++q) {
+        GLuint base = first + q * 4;
+        out[q * 6 + 0] = base + 0;
+        out[q * 6 + 1] = base + 1;
+        out[q * 6 + 2] = base + 2;
+        out[q * 6 + 3] = base + 0;
+        out[q * 6 + 4] = base + 2;
+        out[q * 6 + 5] = base + 3;
+    }
+    GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+    GLES.glDrawElements(GL_TRIANGLES, triCount, GL_UNSIGNED_INT, 0);
+}
+
+// Converts a GL_QUADS indexed draw to GL_TRIANGLES
+template<typename T>
+static void convertQuadIndicesT(const void* srcIndices, GLsizei count, void* dst,
+                                 GLint basevertex, bool hasBaseVertex) {
+    const T* src = (const T*)srcIndices;
+    T* dst_ = (T*)dst;
+    GLsizei quadCount = count / 4;
+    for (GLsizei q = 0; q < quadCount; ++q) {
+        T i0 = src[q * 4 + 0];
+        T i1 = src[q * 4 + 1];
+        T i2 = src[q * 4 + 2];
+        T i3 = src[q * 4 + 3];
+        if (hasBaseVertex) {
+            i0 += basevertex; i1 += basevertex; i2 += basevertex; i3 += basevertex;
+        }
+        dst_[q * 6 + 0] = i0;
+        dst_[q * 6 + 1] = i1;
+        dst_[q * 6 + 2] = i2;
+        dst_[q * 6 + 3] = i0;
+        dst_[q * 6 + 4] = i2;
+        dst_[q * 6 + 5] = i3;
+    }
+}
+
+extern "C" void drawElementsQuads(GLenum mode, GLsizei count, GLenum type, const void* indices,
+                               GLint basevertex, bool hasBaseVertex) {
+    if (count < 4 || (count % 4) != 0) return;
+    GLsizei quadCount = count / 4;
+    GLsizei triCount = quadCount * 6;
+
+    size_t indexSize;
+    switch (type) {
+    case GL_UNSIGNED_BYTE:  indexSize = 1; break;
+    case GL_UNSIGNED_SHORT: indexSize = 2; break;
+    case GL_UNSIGNED_INT:   indexSize = 4; break;
+    default: return;
+    }
+
+    GLsizeiptr bufSize = triCount * indexSize;
+    ensureQuadConvBuffer(bufSize);
+
+    GLint prevEbo;
+    GLES.glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevEbo);
+    GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_quad_conv.ebo);
+
+    void* mapped = GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, bufSize,
+                                          GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+    if (!mapped) {
+        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevEbo);
+        return;
+    }
+
+    if (type == GL_UNSIGNED_BYTE)
+        convertQuadIndicesT<GLubyte>(indices, count, mapped, basevertex, hasBaseVertex);
+    else if (type == GL_UNSIGNED_SHORT)
+        convertQuadIndicesT<GLushort>(indices, count, mapped, basevertex, hasBaseVertex);
+    else
+        convertQuadIndicesT<GLuint>(indices, count, mapped, basevertex, hasBaseVertex);
+
+    GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+    GLES.glDrawElements(GL_TRIANGLES, triCount, type, 0);
+
+    GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevEbo);
+}
+
 void prepareForDraw() {
     LOG_D("prepareForDraw...")
     if (hardware->emulate_texture_buffer) {
@@ -120,6 +225,36 @@ void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void
     LOG_D("glDrawElementsInstanced, mode: %d, count: %d, type: %d, indices: %p, primcount: %d", mode, count, type,
           indices, primcount)
     prepareForDraw();
+    if (mode == GL_QUADS) {
+        if (count < 4 || (count % 4) != 0) return;
+        GLsizei quadCount = count / 4;
+        GLsizei triCount = quadCount * 6;
+        size_t indexSize;
+        switch (type) {
+        case GL_UNSIGNED_BYTE:  indexSize = 1; break;
+        case GL_UNSIGNED_SHORT: indexSize = 2; break;
+        case GL_UNSIGNED_INT:   indexSize = 4; break;
+        default: return;
+        }
+        GLsizeiptr bufSize = triCount * indexSize;
+        ensureQuadConvBuffer(bufSize);
+        GLint prevEbo;
+        GLES.glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevEbo);
+        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_quad_conv.ebo);
+        void* mapped = GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, bufSize,
+                                              GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+        if (!mapped) { GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevEbo); return; }
+        if (type == GL_UNSIGNED_BYTE)
+            convertQuadIndicesT<GLubyte>(indices, count, mapped, 0, false);
+        else if (type == GL_UNSIGNED_SHORT)
+            convertQuadIndicesT<GLushort>(indices, count, mapped, 0, false);
+        else
+            convertQuadIndicesT<GLuint>(indices, count, mapped, 0, false);
+        GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+        GLES.glDrawElementsInstanced(GL_TRIANGLES, triCount, type, 0, primcount);
+        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevEbo);
+        return;
+    }
     GLES.glDrawElementsInstanced(mode, count, type, indices, primcount);
     CHECK_GL_ERROR
 }
@@ -128,6 +263,10 @@ void glDrawElements(GLenum mode, GLsizei count, GLenum type, const void* indices
     LOG()
     LOG_D("glDrawElements, mode: %d, count: %d, type: %d, indices: %p", mode, count, type, indices)
     prepareForDraw();
+    if (mode == GL_QUADS) {
+        drawElementsQuads(mode, count, type, indices, 0, false);
+        return;
+    }
     GLES.glDrawElements(mode, count, type, indices);
     CHECK_GL_ERROR
 }
@@ -179,6 +318,10 @@ void glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const voi
     LOG_D("glDrawElementsBaseVertex, mode: %d, count: %d, type: %d, indices: %p, basevertex: %d", mode, count, type,
           indices, basevertex);
     prepareForDraw();
+    if (mode == GL_QUADS) {
+        drawElementsQuads(mode, count, type, indices, basevertex, true);
+        return;
+    }
     if (hardware->es_version < 320 && !g_gles_caps.GL_EXT_draw_elements_base_vertex &&
         !g_gles_caps.GL_OES_draw_elements_base_vertex) {
         LOG_D("Emulating glDrawElementsBaseVertex")

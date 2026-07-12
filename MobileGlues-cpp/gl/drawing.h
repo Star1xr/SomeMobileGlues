@@ -27,10 +27,23 @@ struct SamplerInfo {
     std::vector<GLint> samplers;
 };
 
+// Quad-to-triangle conversion shared state (used by gl_native.cpp and drawing.cpp)
+struct QuadConvBuf {
+    GLuint ebo = 0;
+    GLsizeiptr capacity = 0;
+};
+extern QuadConvBuf s_quad_conv;
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+    // Quad-to-triangle conversion helpers (called from gl_native.cpp)
+    void drawArraysQuads(GLenum mode, GLint first, GLsizei count);
+    void drawElementsQuads(GLenum mode, GLsizei count, GLenum type, const void* indices,
+                           GLint basevertex, bool hasBaseVertex);
+    void ensureQuadConvBuffer(GLsizeiptr needed);
 
     GLAPI GLAPIENTRY void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices,
                                                   GLsizei primcount);
