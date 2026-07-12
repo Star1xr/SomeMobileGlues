@@ -16,11 +16,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up JDK 11 (sdkmanager)
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 17
 
       - name: Install NDK
         run: |
@@ -33,15 +33,10 @@ jobs:
             find $ANDROID_HOME -name "sdkmanager" -type f 2>/dev/null
             exit 1
           fi
+          yes | $SDKMANAGER --licenses
           $SDKMANAGER --install "ndk;27.3.13750724"
           echo "NDK installed:"
           ls $ANDROID_HOME/ndk/
-
-      - name: Set up JDK 17 (Gradle build)
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
