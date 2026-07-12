@@ -45,14 +45,16 @@ jobs:
         run: |
           mkdir -p artifacts
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
-            so_path=$(find build/intermediates -name "libmobileglues.so" -path "*$abi*" 2>/dev/null | head -1)
+            so_path=$(find build/ -name "libmobileglues.so" -path "*$abi*" 2>/dev/null | head -1)
             if [ -n "$so_path" ]; then
               cp "$so_path" "artifacts/${abi}_mobileglues.so"
-              echo "Copied: $abi"
+              echo "Copied: $abi -> ${abi}_mobileglues.so"
             else
               echo "No .so found for ABI: $abi"
             fi
           done
+          echo "--- Build output tree ---"
+          find build/ -name "*.so" 2>/dev/null | head -20
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
