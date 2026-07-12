@@ -107,6 +107,8 @@ void init_gl_state() {
     set_gl_state_proxy_height(0);
     set_gl_state_proxy_width(0);
     set_gl_state_proxy_intformat(0);
+    gl_state->last_bound_texture_2d = 0;
+    gl_state->last_bound_buffer = 0;
 
     InitTextureMap(1024);
     InitBufferMap(4096);
