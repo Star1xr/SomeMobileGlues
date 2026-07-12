@@ -23,14 +23,6 @@ extern UnorderedMap<GLuint, bool> program_map_is_atomic_counter_emulated;
 
 UnorderedMap<GLuint, SamplerInfo> g_samplerCacheForSamplerBuffer;
 
-struct BufferTexUniformCache {
-    GLint lastTexId = 0;
-    GLint lastWidth = 0;
-    GLint lastHeight = 0;
-};
-
-static ankerl::unordered_dense::map<GLuint, BufferTexUniformCache> s_buffer_tex_cache;
-
 void setupBufferTextureUniforms(GLuint program) {
     LOG_D("setupBufferTextureUniforms, program: %d", program);
 
@@ -73,39 +65,30 @@ void setupBufferTextureUniforms(GLuint program) {
     GLint locWidth = progSamplerInfo.locWidth;
     GLint locHeight = progSamplerInfo.locHeight;
 
-    GLuint prev_unit = gl_state->current_tex_unit;
-    const GLint unit = 15;
-
-    GLES.glActiveTexture(GL_TEXTURE0 + unit);
-    GLint texId = 0;
-    GLES.glGetIntegerv(GL_TEXTURE_BINDING_2D, &texId);
-
-    if (texId == 0) {
-        GLES.glActiveTexture(GL_TEXTURE0 + prev_unit);
-        return;
-    }
-
-    auto& cache = s_buffer_tex_cache[program];
-    auto texObject = mgGetTexObjectByID(texId);
-
-    bool changed = (cache.lastTexId != texId) || (cache.lastWidth != texObject->width) ||
-                   (cache.lastHeight != texObject->height);
-
-    if (changed) {
-        cache.lastTexId = texId;
-        cache.lastWidth = texObject->width;
-        cache.lastHeight = texObject->height;
-
-        for (auto locSampler : progSamplerInfo.samplers) {
-            if (locSampler >= 0) {
-                GLES.glUniform1i(locSampler, unit);
-            }
+    for (auto locSampler : progSamplerInfo.samplers) {
+        if (locSampler < 0) {
+            continue;
         }
+
+        GLuint prev_unit = gl_state->current_tex_unit;
+        const GLint unit = 15;
+
+        GLES.glActiveTexture(GL_TEXTURE0 + unit);
+        GLint texId = 0;
+        GLES.glGetIntegerv(GL_TEXTURE_BINDING_2D, &texId);
+        if (texId == 0) {
+            GLES.glActiveTexture(GL_TEXTURE0 + prev_unit);
+            continue;
+        }
+
+        auto texObject = mgGetTexObjectByID(texId);
+
+        GLES.glUniform1i(locSampler, unit);
         GLES.glUniform1i(locWidth, texObject->width);
         GLES.glUniform1i(locHeight, texObject->height);
-    }
 
-    GLES.glActiveTexture(GL_TEXTURE0 + prev_unit);
+        GLES.glActiveTexture(GL_TEXTURE0 + prev_unit);
+    }
 }
 
 void prepareForDraw() {
@@ -181,6 +164,7 @@ void glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const voi
     prepareForDraw();
     if (hardware->es_version < 320 && !g_gles_caps.GL_EXT_draw_elements_base_vertex &&
         !g_gles_caps.GL_OES_draw_elements_base_vertex) {
+        // TODO: use indirect drawing for GLES 3.1
         LOG_D("Emulating glDrawElementsBaseVertex")
         GLint prevElementBuffer;
         GLES.glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevElementBuffer);
@@ -205,64 +189,54 @@ void glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const voi
             return;
         }
 
-        size_t dataSize = count * indexSize;
-
-        static GLuint s_temp_buffer = 0;
-        static GLsizeiptr s_temp_buffer_size = 0;
-        if (!s_temp_buffer) {
-            GLES.glGenBuffers(1, &s_temp_buffer);
-        }
-
-        if (dataSize > (size_t)s_temp_buffer_size) {
-            GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_temp_buffer);
-            GLES.glBufferData(GL_ELEMENT_ARRAY_BUFFER, dataSize, nullptr, GL_DYNAMIC_DRAW);
-            s_temp_buffer_size = dataSize;
-        }
-
-        void* mapped =
-            GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, dataSize, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-        if (!mapped) {
-            GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevElementBuffer);
+        void* tempIndices = malloc(count * indexSize);
+        if (!tempIndices) {
             return;
         }
 
         if (prevElementBuffer != 0) {
             GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevElementBuffer);
             void* srcData =
-                GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, (GLintptr)indices, dataSize, GL_MAP_READ_BIT);
+                GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, (GLintptr)indices, count * indexSize, GL_MAP_READ_BIT);
+
             if (srcData) {
-                memcpy(mapped, srcData, dataSize);
+                memcpy(tempIndices, srcData, count * indexSize);
                 GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
             } else {
-                GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-                GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevElementBuffer);
+                free(tempIndices);
                 return;
             }
-            GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_temp_buffer);
         } else {
-            memcpy(mapped, indices, dataSize);
+            memcpy(tempIndices, indices, count * indexSize);
         }
 
         switch (type) {
         case GL_UNSIGNED_INT:
             for (int j = 0; j < count; ++j) {
-                ((GLuint*)mapped)[j] += basevertex;
+                ((GLuint*)tempIndices)[j] += basevertex;
             }
             break;
         case GL_UNSIGNED_SHORT:
             for (int j = 0; j < count; ++j) {
-                ((GLushort*)mapped)[j] += basevertex;
+                ((GLushort*)tempIndices)[j] += basevertex;
             }
             break;
         case GL_UNSIGNED_BYTE:
             for (int j = 0; j < count; ++j) {
-                ((GLubyte*)mapped)[j] += basevertex;
+                ((GLubyte*)tempIndices)[j] += basevertex;
             }
             break;
         }
 
-        GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+        GLuint tempBuffer;
+        GLES.glGenBuffers(1, &tempBuffer);
+        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tempBuffer);
+        GLES.glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * indexSize, tempIndices, GL_STREAM_DRAW);
+        free(tempIndices);
+
         GLES.glDrawElements(mode, count, type, 0);
+
+        GLES.glDeleteBuffers(1, &tempBuffer);
         GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevElementBuffer);
 
         CHECK_GL_ERROR
