@@ -157,8 +157,8 @@ void glDrawBuffers(GLsizei n, const GLenum* bufs) {
     GLES.glDrawBuffers(n, new_bufs.data());
 }
 void glReadBuffer(GLenum src) {
-    if (current_read_fbo != 0 && src >= GL_COLOR_ATTACHMENT0 && src < GL_COLOR_ATTACHMENT0 + MAX_COLOR_ATTACHMENTS) {
-        framebuffer_t& fbo = framebuffers[current_read_fbo];
+    if (gl_state->current_read_fbo != 0 && src >= GL_COLOR_ATTACHMENT0 && src < GL_COLOR_ATTACHMENT0 + MAX_COLOR_ATTACHMENTS) {
+        framebuffer_t& fbo = framebuffers[gl_state->current_read_fbo];
         int index = src - GL_COLOR_ATTACHMENT0;
         attachment_t& attach = fbo.color_attachments[index];
         GLES.glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, attach.textarget, attach.texture,
