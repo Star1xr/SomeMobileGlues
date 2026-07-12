@@ -346,8 +346,13 @@ void glBindBuffer(GLenum target, GLuint buffer) {
         update_vao_ibo_binding(find_bound_array(), buffer);
     }
 
+    if (target == GL_ARRAY_BUFFER && buffer == gl_state->last_bound_buffer) {
+        return;
+    }
+
     if (!has_buffer(buffer) || buffer == 0) {
         GLES.glBindBuffer(target, buffer);
+        if (target == GL_ARRAY_BUFFER) gl_state->last_bound_buffer = buffer;
         CHECK_GL_ERROR
         return;
     }
@@ -359,6 +364,7 @@ void glBindBuffer(GLenum target, GLuint buffer) {
     }
     LOG_D("glBindBuffer: %d -> %d", buffer, real_buffer)
     GLES.glBindBuffer(target, real_buffer);
+    if (target == GL_ARRAY_BUFFER) gl_state->last_bound_buffer = buffer;
     CHECK_GL_ERROR
 }
 
@@ -595,8 +601,6 @@ void glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer) {
         GLES.glGetBufferParameteriv(GL_PIXEL_UNPACK_BUFFER, GL_BUFFER_SIZE, &bufferSize);
         LOG_D("Buffer size = %d bytes", bufferSize);
 
-        GLES.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-
         GLES.glBindTexture(GL_TEXTURE_2D, boundTexture);
         LOG_D("Binding texture %u to GL_TEXTURE_2D", boundTexture);
 
@@ -618,21 +622,22 @@ void glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer) {
         GLES.glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &prev_skip_pixels);
         GLES.glGetIntegerv(GL_UNPACK_SKIP_ROWS, &prev_skip_rows);
 
-        // why do these 2 params not work
-        // GLES.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        // GLES.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0)
         GLES.glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
         GLES.glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+        GLES.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-        // TODO: Optimize the glTexImage2D call
-        GLES.glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, GL_RED_INTEGER, GL_BYTE, nullptr);
-
-        GLES.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, real_buffer);
-
-        for (GLuint row = 0; row < height; ++row) {
-            void* offset = (void*)(row * width * pixelSize);
-            GLES.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, row, width, 1, GL_RED_INTEGER, GL_BYTE, offset);
+        GLenum uploadType;
+        switch (pixelSize) {
+        case 1: uploadType = GL_BYTE; break;
+        case 2: uploadType = GL_SHORT; break;
+        case 4: uploadType = GL_INT; break;
+        default: uploadType = GL_BYTE; break;
         }
+
+        GLES.glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, GL_RED_INTEGER, uploadType, nullptr);
+
+        GLES.glPixelStorei(GL_UNPACK_ROW_LENGTH, width);
+        GLES.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED_INTEGER, uploadType, nullptr);
 
         GLES.glPixelStorei(GL_UNPACK_ALIGNMENT, prev_alignment);
         GLES.glPixelStorei(GL_UNPACK_ROW_LENGTH, prev_row_length);
