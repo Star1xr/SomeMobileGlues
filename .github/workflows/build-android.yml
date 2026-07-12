@@ -134,12 +134,14 @@ jobs:
         with:
           name: MobileGlues_unsigned.apk
           path: repacked.apk
+          archive: false
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v7
         with:
           name: MobileGlues_signed.apk
           path: mobileglues-signed.apk
+          archive: false
 
       - name: Upload individual .so files
         uses: actions/upload-artifact@v7
