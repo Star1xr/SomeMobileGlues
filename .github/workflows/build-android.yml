@@ -24,7 +24,16 @@ jobs:
 
       - name: Install NDK
         run: |
-          $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;27.3.13750724"
+          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+          if [ ! -f "$SDKMANAGER" ]; then
+            SDKMANAGER=$ANDROID_HOME/tools/bin/sdkmanager
+          fi
+          if [ ! -f "$SDKMANAGER" ]; then
+            echo "sdkmanager not found, searching..."
+            find $ANDROID_HOME -name "sdkmanager" -type f 2>/dev/null
+            exit 1
+          fi
+          $SDKMANAGER --install "ndk;27.3.13750724"
           echo "NDK installed:"
           ls $ANDROID_HOME/ndk/
 
