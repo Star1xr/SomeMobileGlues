@@ -109,6 +109,10 @@ void init_gl_state() {
     set_gl_state_proxy_intformat(0);
     gl_state->last_bound_texture_2d = 0;
     gl_state->last_bound_buffer = 0;
+    gl_state->alpha_test_enabled = false;
+    gl_state->alpha_func = GL_ALWAYS;
+    gl_state->alpha_ref = 0.0f;
+    gl_state->alpha_test_blend_forced = false;
 
     InitTextureMap(1024);
     InitBufferMap(4096);

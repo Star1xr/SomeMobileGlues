@@ -144,3 +144,10 @@ void glHint(GLenum target, GLenum mode) {
     LOG()
     LOG_D("glHint, target = %s, mode = %s", glEnumToString(target), glEnumToString(mode))
 }
+
+void glAlphaFunc(GLenum func, GLclampf ref) {
+    LOG()
+    LOG_D("glAlphaFunc, func = %d, ref = %f", func, ref)
+    gl_state->alpha_func = func;
+    gl_state->alpha_ref = ref;
+}

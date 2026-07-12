@@ -78,6 +78,17 @@ extern "C"
 
         GLuint last_bound_texture_2d;
         GLuint last_bound_buffer;
+
+        bool alpha_test_enabled;
+        GLenum alpha_func;
+        GLfloat alpha_ref;
+
+        bool alpha_test_blend_forced;
+        bool alpha_test_blend_was_enabled;
+        GLint alpha_test_blend_src_rgb;
+        GLint alpha_test_blend_dst_rgb;
+        GLint alpha_test_blend_src_alpha;
+        GLint alpha_test_blend_dst_alpha;
     };
     typedef struct gl_state_s* gl_state_t;
     extern gl_state_t gl_state;
