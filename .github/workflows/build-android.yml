@@ -26,11 +26,13 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Accept licenses
-        run: yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+        run: yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses 2>&1 || true
 
       - name: Install NDK
         run: |
-          $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;27.3.13750724" > /dev/null 2>&1
+          $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;27.3.13750724" 2>&1
+          echo "NDK installed, listing:"
+          ls $ANDROID_HOME/ndk/ 2>/dev/null || echo "No ndk/ directory"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
