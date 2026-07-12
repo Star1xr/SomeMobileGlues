@@ -1,6 +1,6 @@
 ## About This Fork
 
-This fork focuses on rendering bug fixes and GPU round-trip reduction for Minecraft with Sodium. Changes include: fixed per-texture-unit state tracking (black GUI, wrong item lighting), eliminated glGetIntegerv calls in hot paths, removed broken GL_QUADS/alpha test emulation, added redundant bind elimination for textures and buffers, and per-program uniform shadow caching.
+This fork focuses on performance improvements for Minecraft with Sodium: eliminated glGetIntegerv calls in hot paths, added redundant bind elimination for textures and buffers, and per-program uniform shadow caching.
 
 # MobileGlues
 
