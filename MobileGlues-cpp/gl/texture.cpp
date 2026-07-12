@@ -1017,7 +1017,7 @@ void glBindTexture(GLenum target, GLuint texture) {
     LOG_D("glBindTexture(%s, %d)", glEnumToString(target), texture)
     INIT_CHECK_GL_ERROR
 
-    if (target == GL_TEXTURE_2D && texture == gl_state->last_bound_texture_2d) {
+    if (target == GL_TEXTURE_2D && texture == gl_state->last_bound_texture_2d[gl_state->current_tex_unit]) {
         goto track_only;
     }
 
@@ -1031,7 +1031,7 @@ void glBindTexture(GLenum target, GLuint texture) {
     CHECK_GL_ERROR_NO_INIT
 
     if (target == GL_TEXTURE_2D) {
-        gl_state->last_bound_texture_2d = texture;
+        gl_state->last_bound_texture_2d[gl_state->current_tex_unit] = texture;
     }
 
 track_only:
@@ -1059,8 +1059,10 @@ void glDeleteTextures(GLsizei n, const GLuint* textures) {
     CHECK_GL_ERROR_NO_INIT
 
     for (GLsizei i = 0; i < n; ++i) {
-        if (textures[i] == gl_state->last_bound_texture_2d) {
-            gl_state->last_bound_texture_2d = 0;
+        for (int u = 0; u < 96; ++u) {
+            if (gl_state->last_bound_texture_2d[u] == textures[i]) {
+                gl_state->last_bound_texture_2d[u] = 0;
+            }
         }
         MarkTextureObjectForDeletion(textures[i]);
     }

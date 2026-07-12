@@ -76,7 +76,7 @@ extern "C"
         GLuint current_tex_unit;
         GLuint current_draw_fbo;
 
-        GLuint last_bound_texture_2d;
+        GLuint last_bound_texture_2d[96];
         GLuint last_bound_buffer;
     };
     typedef struct gl_state_s* gl_state_t;
