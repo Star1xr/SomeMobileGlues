@@ -16,23 +16,23 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up JDK 17
+      - name: Set up JDK 11 (sdkmanager)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Install NDK
+        run: |
+          $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;27.3.13750724"
+          echo "NDK installed:"
+          ls $ANDROID_HOME/ndk/
+
+      - name: Set up JDK 17 (Gradle build)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses
-        run: yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses 2>&1 || true
-
-      - name: Install NDK
-        run: |
-          $ANDROID_HOME/tools/bin/sdkmanager --install "ndk;27.3.13750724" 2>&1
-          echo "NDK installed, listing:"
-          ls $ANDROID_HOME/ndk/ 2>/dev/null || echo "No ndk/ directory"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
