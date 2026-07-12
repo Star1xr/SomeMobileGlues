@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      base_apk_url:
+        description: 'URL of the base APK to inject .so files into'
+        required: false
+        default: 'https://github.com/MobileGL-Dev/MobileGlues-release/releases/download/V1.3.5/MobileGlues_1.3.5.apk'
 
 jobs:
   build-android:
@@ -44,25 +49,99 @@ jobs:
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 8.12
 
-      - name: Build with Gradle
+      - name: Build .so files with Gradle
         run: ./gradlew assembleRelease
 
-      - name: Locate and rename .so files
+      - name: Collect built .so files
         run: |
           mkdir -p artifacts
           for abi in arm64-v8a armeabi-v7a x86_64 x86; do
             so_path=$(find build/ -name "libmobileglues.so" -path "*$abi*" 2>/dev/null | head -1)
             if [ -n "$so_path" ]; then
-              cp "$so_path" "artifacts/${abi}_mobileglues.so"
-              echo "Copied: $abi -> ${abi}_mobileglues.so"
+              mkdir -p "artifacts/$abi"
+              cp "$so_path" "artifacts/$abi/libmobileglues.so"
+              echo "Collected: $abi/libmobileglues.so"
             else
-              echo "No .so found for ABI: $abi"
+              echo "WARNING: No .so found for ABI: $abi"
             fi
           done
-          echo "--- Build output tree ---"
-          find build/ -name "*.so" 2>/dev/null | head -20
 
-      - name: Upload artifacts
+      - name: Download base APK
+        run: |
+          BASE_URL="${{ github.event.inputs.base_apk_url || 'https://github.com/MobileGL-Dev/MobileGlues-release/releases/download/V1.3.5/MobileGlues_1.3.5.apk' }}"
+          echo "Downloading base APK from: $BASE_URL"
+          curl -L -o base.apk "$BASE_URL"
+
+      - name: Inject .so files into APK
+        run: |
+          mkdir -p apk_work
+          cd apk_work
+          unzip -q ../base.apk
+
+          # Replace .so files for each ABI
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            src="../artifacts/$abi/libmobileglues.so"
+            if [ -f "$src" ]; then
+              mkdir -p "lib/$abi"
+              cp "$src" "lib/$abi/libmobileglues.so"
+              echo "Injected: lib/$abi/libmobileglues.so"
+            else
+              echo "Skipping ABI $abi (no .so built)"
+            fi
+          done
+
+          # Remove old signatures before repacking
+          rm -rf META-INF
+
+          # Repack APK (store files uncompressed for native libs)
+          cd ..
+          rm -f repacked.apk
+          cd apk_work && zip -r -0 -X ../repacked.apk . && cd ..
+
+          echo "APK repacked: repacked.apk"
+
+      - name: Align and sign APK
+        run: |
+          # Locate build-tools for zipalign and apksigner
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* 2>/dev/null | sort -V | tail -1)
+          if [ -z "$BUILD_TOOLS" ]; then
+            echo "Installing build-tools..."
+            $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0"
+            BUILD_TOOLS=$ANDROID_HOME/build-tools/36.0.0
+          fi
+          echo "Using build-tools: $BUILD_TOOLS"
+          ZIPALIGN=$BUILD_TOOLS/zipalign
+          APKSIGNER=$BUILD_TOOLS/apksigner
+
+          # Align
+          $ZIPALIGN -f -p 4 repacked.apk aligned.apk
+
+          # Generate debug keystore
+          KEYSTORE=debug.keystore
+          keytool -genkey -v -keystore $KEYSTORE -alias debug \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Debug, OU=MobileGlues, O=MobileGL-Dev, L=Unknown, ST=Unknown, C=US"
+
+          # Sign
+          $APKSIGNER sign --ks $KEYSTORE --ks-pass pass:android \
+            --key-pass pass:android --out mobileglues-signed.apk aligned.apk
+
+          echo "Signed APK: mobileglues-signed.apk"
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: MobileGlues_unsigned.apk
+          path: repacked.apk
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: MobileGlues_signed.apk
+          path: mobileglues-signed.apk
+
+      - name: Upload individual .so files
         uses: actions/upload-artifact@v7
         with:
           name: mobileglues-android
