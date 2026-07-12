@@ -610,6 +610,7 @@ void glTexBuffer(GLenum target, GLenum internalformat, GLuint buffer) {
         GLES.glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
         GLES.glBindTexture(GL_TEXTURE_2D, boundTexture);
+        gl_state->last_bound_texture_2d[15] = boundTexture;
         LOG_D("Binding texture %u to GL_TEXTURE_2D", boundTexture);
 
         const GLuint MAX_WIDTH = 8192;

@@ -1024,6 +1024,7 @@ void glBindTexture(GLenum target, GLuint texture) {
     if (hardware && gl_state && hardware->emulate_texture_buffer && target == GL_TEXTURE_BUFFER) {
         GLES.glActiveTexture(GL_TEXTURE0 + 15);
         GLES.glBindTexture(GL_TEXTURE_2D, texture);
+        gl_state->last_bound_texture_2d[15] = texture;
         GLES.glActiveTexture(GL_TEXTURE0 + gl_state->current_tex_unit);
     } else {
         GLES.glBindTexture(target, texture);

@@ -48,6 +48,8 @@ extern "C"
 
 #ifdef __cplusplus
 }
+
+void clear_uniform_cache(GLuint program);
 #endif
 
 #endif // MOBILEGLUES_DRAWING_H

@@ -15,7 +15,6 @@
 static GLint MAX_COLOR_ATTACHMENTS = 0;
 static GLint MAX_DRAW_BUFFERS = 0;
 GLuint current_draw_fbo = 0;
-GLuint current_read_fbo = 0;
 std::vector<framebuffer_t> framebuffers;
 void ensure_max_attachments() {
     if (MAX_COLOR_ATTACHMENTS == 0) {
@@ -63,12 +62,12 @@ void glBindFramebuffer(GLenum target, GLuint framebuffer) {
         current_draw_fbo = framebuffer;
     }
     if (target == GL_READ_FRAMEBUFFER || target == GL_FRAMEBUFFER) {
-        current_read_fbo = framebuffer;
+        set_gl_state_current_read_fbo(framebuffer);
     }
     GLES.glBindFramebuffer(target, framebuffer);
 }
 void update_attachment(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level) {
-    GLuint current_fbo = (target == GL_READ_FRAMEBUFFER) ? current_read_fbo : current_draw_fbo;
+    GLuint current_fbo = (target == GL_READ_FRAMEBUFFER) ? gl_state->current_read_fbo : current_draw_fbo;
     if (current_fbo == 0) return;
     framebuffer_t& fbo = framebuffers[current_fbo];
     if (attachment >= GL_COLOR_ATTACHMENT0 && attachment < GL_COLOR_ATTACHMENT0 + MAX_COLOR_ATTACHMENTS) {

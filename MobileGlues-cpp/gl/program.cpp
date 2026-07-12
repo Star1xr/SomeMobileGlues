@@ -173,6 +173,7 @@ void glLinkProgram(GLuint program) {
     }
 
     GLES.glLinkProgram(program);
+    clear_uniform_cache(program);
 
     CHECK_GL_ERROR
 }

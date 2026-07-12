@@ -59,6 +59,7 @@ extern "C"
     FUNC_GL_STATE_UINT_DECLARATION(current_program)
     FUNC_GL_STATE_UINT_DECLARATION(current_tex_unit)
     FUNC_GL_STATE_UINT_DECLARATION(current_draw_fbo)
+    FUNC_GL_STATE_UINT_DECLARATION(current_read_fbo)
 
     struct hardware_s {
         unsigned int es_version;
@@ -75,6 +76,7 @@ extern "C"
         GLuint current_program;
         GLuint current_tex_unit;
         GLuint current_draw_fbo;
+        GLuint current_read_fbo;
 
         GLuint last_bound_texture_2d[96];
         GLuint last_bound_buffer;

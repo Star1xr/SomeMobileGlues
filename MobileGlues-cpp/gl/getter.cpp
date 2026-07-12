@@ -85,6 +85,18 @@ void glGetIntegerv(GLenum pname, GLint* params) {
     case GL_VERTEX_ARRAY_BINDING:
         (*params) = (int)find_bound_array();
         break;
+    case GL_TEXTURE_BINDING_2D:
+        (*params) = (GLint)gl_state->last_bound_texture_2d[gl_state->current_tex_unit];
+        break;
+    case GL_ACTIVE_TEXTURE:
+        (*params) = (GLint)(GL_TEXTURE0 + gl_state->current_tex_unit);
+        break;
+    case GL_DRAW_FRAMEBUFFER_BINDING:
+        (*params) = (GLint)gl_state->current_draw_fbo;
+        break;
+    case GL_READ_FRAMEBUFFER_BINDING:
+        (*params) = (GLint)gl_state->current_read_fbo;
+        break;
     default:
         GLES.glGetIntegerv(pname, params);
         LOG_D("  -> %d", *params)

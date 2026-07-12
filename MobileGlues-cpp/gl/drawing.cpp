@@ -77,8 +77,7 @@ void setupBufferTextureUniforms(GLuint program) {
     const GLint unit = 15;
 
     GLES.glActiveTexture(GL_TEXTURE0 + unit);
-    GLint texId = 0;
-    GLES.glGetIntegerv(GL_TEXTURE_BINDING_2D, &texId);
+    GLint texId = (GLint)gl_state->last_bound_texture_2d[unit];
 
     if (texId == 0) {
         GLES.glActiveTexture(GL_TEXTURE0 + prev_unit);
@@ -141,9 +140,25 @@ void glBindImageTexture(GLuint unit, GLuint texture, GLint level, GLboolean laye
     CHECK_GL_ERROR
 }
 
+static ankerl::unordered_dense::map<GLuint, ankerl::unordered_dense::map<GLint, GLint>> s_uniform1i_cache;
+
+void clear_uniform_cache(GLuint program) {
+    auto it = s_uniform1i_cache.find(program);
+    if (it != s_uniform1i_cache.end()) {
+        s_uniform1i_cache.erase(it);
+    }
+}
+
 void glUniform1i(GLint location, GLint v0) {
     LOG()
     LOG_D("glUniform1i, location: %d, v0: %d", location, v0)
+    GLuint prog = gl_state->current_program;
+    auto& prog_cache = s_uniform1i_cache[prog];
+    auto it = prog_cache.find(location);
+    if (it != prog_cache.end() && it->second == v0) {
+        return;
+    }
+    prog_cache[location] = v0;
     GLES.glUniform1i(location, v0);
     CHECK_GL_ERROR
 }
