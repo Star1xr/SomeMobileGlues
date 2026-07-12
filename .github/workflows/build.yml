@@ -32,7 +32,15 @@ jobs:
       - name: Locate and rename .dylib
         run: |
           mkdir -p artifacts
-          cp MobileGlues-cpp/build/libmobileglues.dylib artifacts/iOS_mobileglues.dylib
+          dylib=$(find MobileGlues-cpp/build -name "libmobileglues.dylib" 2>/dev/null | head -1)
+          if [ -n "$dylib" ]; then
+            cp "$dylib" artifacts/iOS_mobileglues.dylib
+            echo "Copied: $dylib"
+          else
+            echo "libmobileglues.dylib not found, listing build directory:"
+            find MobileGlues-cpp/build -type f 2>/dev/null | head -20
+            exit 1
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
