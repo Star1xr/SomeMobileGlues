@@ -1,6 +1,6 @@
 # About This Fork
 
-This fork focuses on performance improvements for Minecraft with Sodium: eliminated glGetIntegerv calls in hot paths, added redundant bind elimination for textures and buffers, and per-program uniform shadow caching.
+This fork focuses on performance improvements for Minecraft 1.21.10 - 26.2 with Sodium: eliminated glGetIntegerv calls in hot paths, added redundant bind elimination for textures and buffers, and per-program uniform shadow caching.
 
 # MobileGlues
 
