@@ -11,7 +11,6 @@
 #include "log.h"
 #include "../gles/loader.h"
 #include "mg.h"
-#include "drawing.h"
 #include <GLES3/gl32.h>
 
 #define DEBUG 0
@@ -55,22 +54,7 @@ NATIVE_FUNCTION_HEAD(void, glDepthMask, GLboolean flag) NATIVE_FUNCTION_END_NO_R
 NATIVE_FUNCTION_HEAD(void, glDepthRangef, GLfloat n, GLfloat f) NATIVE_FUNCTION_END_NO_RETURN(void, glDepthRangef, n,f)
 NATIVE_FUNCTION_HEAD(void, glDetachShader, GLuint program, GLuint shader) NATIVE_FUNCTION_END_NO_RETURN(void, glDetachShader, program,shader)
 NATIVE_FUNCTION_HEAD(void, glDisableVertexAttribArray, GLuint index) NATIVE_FUNCTION_END_NO_RETURN(void, glDisableVertexAttribArray, index)
-
-#ifndef __APPLE__
-extern "C" GLAPI GLAPIENTRY void glDrawArraysARB(GLenum mode, GLint first, GLsizei count) __attribute__((alias("glDrawArrays")));
-extern "C" GLAPI GLAPIENTRY void glDrawArrays(GLenum mode, GLint first, GLsizei count) {
-#else
-extern "C" GLAPI GLAPIENTRY void glDrawArrays(GLenum mode, GLint first, GLsizei count) {
-#endif
-    LOG_D("Use native function: %s @ %s(...)", RENDERERNAME, __FUNCTION__);
-    if (mode == GL_QUADS && count >= 4) {
-        drawArraysQuads(mode, first, count);
-        return;
-    }
-    GLES.glDrawArrays(mode, first, count);
-    CHECK_GL_ERROR
-}
-
+NATIVE_FUNCTION_HEAD(void, glDrawArrays, GLenum mode, GLint first, GLsizei count) NATIVE_FUNCTION_END_NO_RETURN(void, glDrawArrays, mode,first,count)
 //NATIVE_FUNCTION_HEAD(void, glDrawElements, GLenum mode, GLsizei count, GLenum type, const void *indices) NATIVE_FUNCTION_END_NO_RETURN(void, glDrawElements, mode,count,type,indices)
 
 #ifndef __APPLE__
@@ -320,43 +304,7 @@ NATIVE_FUNCTION_HEAD(GLuint, glGetUniformBlockIndex, GLuint program, const GLcha
 NATIVE_FUNCTION_HEAD(void, glGetActiveUniformBlockiv, GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint *params) NATIVE_FUNCTION_END_NO_RETURN(void, glGetActiveUniformBlockiv, program,uniformBlockIndex,pname,params)
 NATIVE_FUNCTION_HEAD(void, glGetActiveUniformBlockName, GLuint program, GLuint uniformBlockIndex, GLsizei bufSize, GLsizei *length, GLchar *uniformBlockName) NATIVE_FUNCTION_END_NO_RETURN(void, glGetActiveUniformBlockName, program,uniformBlockIndex,bufSize,length,uniformBlockName)
 NATIVE_FUNCTION_HEAD(void, glUniformBlockBinding, GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding) NATIVE_FUNCTION_END_NO_RETURN(void, glUniformBlockBinding, program,uniformBlockIndex,uniformBlockBinding)
-#ifndef __APPLE__
-extern "C" GLAPI GLAPIENTRY void glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei instancecount) __attribute__((alias("glDrawArraysInstanced")));
-extern "C" GLAPI GLAPIENTRY void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount) {
-#else
-extern "C" GLAPI GLAPIENTRY void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount) {
-#endif
-    LOG_D("Use native function: %s @ %s(...)", RENDERERNAME, __FUNCTION__);
-    if (mode == GL_QUADS && count >= 4) {
-        if (count % 4 != 0) return;
-        GLsizei quadCount = count / 4;
-        GLsizei triCount = quadCount * 6;
-        GLsizeiptr bufSize = triCount * sizeof(GLuint);
-        ensureQuadConvBuffer(bufSize);
-        GLint prevEbo;
-        GLES.glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &prevEbo);
-        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_quad_conv.ebo);
-        void* mapped = GLES.glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, bufSize,
-                                              GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-        if (!mapped) { GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevEbo); return; }
-        GLuint* out = (GLuint*)mapped;
-        for (GLsizei q = 0; q < quadCount; ++q) {
-            GLuint base = first + q * 4;
-            out[q * 6 + 0] = base + 0;
-            out[q * 6 + 1] = base + 1;
-            out[q * 6 + 2] = base + 2;
-            out[q * 6 + 3] = base + 0;
-            out[q * 6 + 4] = base + 2;
-            out[q * 6 + 5] = base + 3;
-        }
-        GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-        GLES.glDrawElementsInstanced(GL_TRIANGLES, triCount, GL_UNSIGNED_INT, 0, instancecount);
-        GLES.glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, prevEbo);
-        return;
-    }
-    GLES.glDrawArraysInstanced(mode, first, count, instancecount);
-    CHECK_GL_ERROR
-}
+NATIVE_FUNCTION_HEAD(void, glDrawArraysInstanced, GLenum mode, GLint first, GLsizei count, GLsizei instancecount) NATIVE_FUNCTION_END_NO_RETURN(void, glDrawArraysInstanced, mode,first,count,instancecount)
 // NATIVE_FUNCTION_HEAD(void, glDrawElementsInstanced, GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount) NATIVE_FUNCTION_END_NO_RETURN(void, glDrawElementsInstanced, mode,count,type,indices,instancecount)
 NATIVE_FUNCTION_HEAD(GLsync, glFenceSync, GLenum condition, GLbitfield flags) NATIVE_FUNCTION_END(GLsync, glFenceSync, condition,flags)
 NATIVE_FUNCTION_HEAD(GLboolean, glIsSync, GLsync sync) NATIVE_FUNCTION_END(GLboolean, glIsSync, sync)
