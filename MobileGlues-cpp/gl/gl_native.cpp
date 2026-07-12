@@ -53,66 +53,11 @@ NATIVE_FUNCTION_HEAD(void, glDepthFunc, GLenum func) NATIVE_FUNCTION_END_NO_RETU
 NATIVE_FUNCTION_HEAD(void, glDepthMask, GLboolean flag) NATIVE_FUNCTION_END_NO_RETURN(void, glDepthMask, flag)
 NATIVE_FUNCTION_HEAD(void, glDepthRangef, GLfloat n, GLfloat f) NATIVE_FUNCTION_END_NO_RETURN(void, glDepthRangef, n,f)
 NATIVE_FUNCTION_HEAD(void, glDetachShader, GLuint program, GLuint shader) NATIVE_FUNCTION_END_NO_RETURN(void, glDetachShader, program,shader)
+NATIVE_FUNCTION_HEAD(void, glDisable, GLenum cap) NATIVE_FUNCTION_END_NO_RETURN(void, glDisable, cap)
 NATIVE_FUNCTION_HEAD(void, glDisableVertexAttribArray, GLuint index) NATIVE_FUNCTION_END_NO_RETURN(void, glDisableVertexAttribArray, index)
 NATIVE_FUNCTION_HEAD(void, glDrawArrays, GLenum mode, GLint first, GLsizei count) NATIVE_FUNCTION_END_NO_RETURN(void, glDrawArrays, mode,first,count)
 //NATIVE_FUNCTION_HEAD(void, glDrawElements, GLenum mode, GLsizei count, GLenum type, const void *indices) NATIVE_FUNCTION_END_NO_RETURN(void, glDrawElements, mode,count,type,indices)
-
-#ifndef __APPLE__
-extern "C" GLAPI GLAPIENTRY void glDisableARB(GLenum cap) __attribute__((alias("glDisable")));
-extern "C" GLAPI GLAPIENTRY void glDisable(GLenum cap) {
-#else
-extern "C" GLAPI GLAPIENTRY void glDisable(GLenum cap) {
-#endif
-    LOG_D("Use native function: %s @ %s(...)", RENDERERNAME, __FUNCTION__);
-    if (cap == GL_ALPHA_TEST) {
-        gl_state->alpha_test_enabled = false;
-        if (gl_state->alpha_test_blend_forced) {
-            if (!gl_state->alpha_test_blend_was_enabled) {
-                GLES.glDisable(GL_BLEND);
-            }
-            GLES.glBlendFuncSeparate(
-                gl_state->alpha_test_blend_src_rgb,
-                gl_state->alpha_test_blend_dst_rgb,
-                gl_state->alpha_test_blend_src_alpha,
-                gl_state->alpha_test_blend_dst_alpha);
-            gl_state->alpha_test_blend_forced = false;
-        }
-    } else {
-        GLES.glDisable(cap);
-    }
-    CHECK_GL_ERROR
-}
-
-#ifndef __APPLE__
-extern "C" GLAPI GLAPIENTRY void glEnableARB(GLenum cap) __attribute__((alias("glEnable")));
-extern "C" GLAPI GLAPIENTRY void glEnable(GLenum cap) {
-#else
-extern "C" GLAPI GLAPIENTRY void glEnable(GLenum cap) {
-#endif
-    LOG_D("Use native function: %s @ %s(...)", RENDERERNAME, __FUNCTION__);
-    if (cap == GL_ALPHA_TEST) {
-        gl_state->alpha_test_enabled = true;
-        if (gl_state->alpha_func != GL_ALWAYS) {
-            GLboolean blend_enabled;
-            GLES.glGetBooleanv(GL_BLEND, &blend_enabled);
-            gl_state->alpha_test_blend_was_enabled = blend_enabled ? GL_TRUE : GL_FALSE;
-            if (!blend_enabled) {
-                GLES.glGetIntegerv(GL_BLEND_SRC_RGB, &gl_state->alpha_test_blend_src_rgb);
-                GLES.glGetIntegerv(GL_BLEND_DST_RGB, &gl_state->alpha_test_blend_dst_rgb);
-                GLES.glGetIntegerv(GL_BLEND_SRC_ALPHA, &gl_state->alpha_test_blend_src_alpha);
-                GLES.glGetIntegerv(GL_BLEND_DST_ALPHA, &gl_state->alpha_test_blend_dst_alpha);
-                GLES.glEnable(GL_BLEND);
-                GLES.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                gl_state->alpha_test_blend_forced = true;
-            } else {
-                gl_state->alpha_test_blend_forced = false;
-            }
-        }
-    } else {
-        GLES.glEnable(cap);
-    }
-    CHECK_GL_ERROR
-}
+NATIVE_FUNCTION_HEAD(void, glEnable, GLenum cap) NATIVE_FUNCTION_END_NO_RETURN(void, glEnable, cap)
 NATIVE_FUNCTION_HEAD(void, glEnableVertexAttribArray, GLuint index) NATIVE_FUNCTION_END_NO_RETURN(void, glEnableVertexAttribArray, index)
 NATIVE_FUNCTION_HEAD(void, glFinish) NATIVE_FUNCTION_END_NO_RETURN(void, glFinish)
 NATIVE_FUNCTION_HEAD(void, glFlush) NATIVE_FUNCTION_END_NO_RETURN(void, glFlush)
@@ -128,6 +73,7 @@ NATIVE_FUNCTION_HEAD(void, glGetActiveAttrib, GLuint program, GLuint index, GLsi
 NATIVE_FUNCTION_HEAD(void, glGetActiveUniform, GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name) NATIVE_FUNCTION_END_NO_RETURN(void, glGetActiveUniform, program,index,bufSize,length,size,type,name)
 NATIVE_FUNCTION_HEAD(void, glGetAttachedShaders, GLuint program, GLsizei maxCount, GLsizei *count, GLuint *shaders) NATIVE_FUNCTION_END_NO_RETURN(void, glGetAttachedShaders, program,maxCount,count,shaders)
 NATIVE_FUNCTION_HEAD(GLint, glGetAttribLocation, GLuint program, const GLchar *name) NATIVE_FUNCTION_END(GLint, glGetAttribLocation, program,name)
+NATIVE_FUNCTION_HEAD(void, glGetBooleanv, GLenum pname, GLboolean *data) NATIVE_FUNCTION_END_NO_RETURN(void, glGetBooleanv, pname,data)
 NATIVE_FUNCTION_HEAD(void, glGetBufferParameteriv, GLenum target, GLenum pname, GLint *params) NATIVE_FUNCTION_END_NO_RETURN(void, glGetBufferParameteriv, target,pname,params)
 //NATIVE_FUNCTION_HEAD(GLenum, glGetError) NATIVE_FUNCTION_END(GLenum, glGetError)
 NATIVE_FUNCTION_HEAD(void, glGetFloatv, GLenum pname, GLfloat *data) NATIVE_FUNCTION_END_NO_RETURN(void, glGetFloatv, pname,data)
@@ -135,21 +81,6 @@ NATIVE_FUNCTION_HEAD(void, glGetFramebufferAttachmentParameteriv, GLenum target,
 //NATIVE_FUNCTION_HEAD(void, glGetIntegerv, GLenum pname, GLint *params) NATIVE_FUNCTION_END_NO_RETURN(void, glGetIntegerv, pname,params)
 //NATIVE_FUNCTION_HEAD(void, glGetProgramiv, GLuint program, GLenum pname, GLint *params) NATIVE_FUNCTION_END_NO_RETURN(void, glGetProgramiv, program,pname,params)
 NATIVE_FUNCTION_HEAD(void, glGetProgramInfoLog, GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog) NATIVE_FUNCTION_END_NO_RETURN(void, glGetProgramInfoLog, program,bufSize,length,infoLog)
-
-#ifndef __APPLE__
-extern "C" GLAPI GLAPIENTRY void glGetBooleanvARB(GLenum pname, GLboolean *data) __attribute__((alias("glGetBooleanv")));
-extern "C" GLAPI GLAPIENTRY void glGetBooleanv(GLenum pname, GLboolean *data) {
-#else
-extern "C" GLAPI GLAPIENTRY void glGetBooleanv(GLenum pname, GLboolean *data) {
-#endif
-    LOG_D("Use native function: %s @ %s(...)", RENDERERNAME, __FUNCTION__);
-    if (pname == GL_ALPHA_TEST) {
-        *data = gl_state->alpha_test_enabled ? GL_TRUE : GL_FALSE;
-        return;
-    }
-    GLES.glGetBooleanv(pname, data);
-    CHECK_GL_ERROR
-}
 NATIVE_FUNCTION_HEAD(void, glGetRenderbufferParameteriv, GLenum target, GLenum pname, GLint *params) NATIVE_FUNCTION_END_NO_RETURN(void, glGetRenderbufferParameteriv, target,pname,params)
 //NATIVE_FUNCTION_HEAD(void, glGetShaderiv, GLuint shader, GLenum pname, GLint *params) NATIVE_FUNCTION_END_NO_RETURN(void, glGetShaderiv, shader,pname,params)
 NATIVE_FUNCTION_HEAD(void, glGetShaderInfoLog, GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog) NATIVE_FUNCTION_END_NO_RETURN(void, glGetShaderInfoLog, shader,bufSize,length,infoLog)
@@ -165,20 +96,7 @@ NATIVE_FUNCTION_HEAD(void, glGetVertexAttribiv, GLuint index, GLenum pname, GLin
 NATIVE_FUNCTION_HEAD(void, glGetVertexAttribPointerv, GLuint index, GLenum pname, void **pointer) NATIVE_FUNCTION_END_NO_RETURN(void, glGetVertexAttribPointerv, index,pname,pointer)
 //NATIVE_FUNCTION_HEAD(void, glHint, GLenum target, GLenum mode) NATIVE_FUNCTION_END_NO_RETURN(void, glHint, target,mode)
 //NATIVE_FUNCTION_HEAD(GLboolean, glIsBuffer, GLuint buffer) NATIVE_FUNCTION_END(GLboolean, glIsBuffer, buffer)
-#ifndef __APPLE__
-extern "C" GLAPI GLAPIENTRY GLboolean glIsEnabledARB(GLenum cap) __attribute__((alias("glIsEnabled")));
-extern "C" GLAPI GLAPIENTRY GLboolean glIsEnabled(GLenum cap) {
-#else
-extern "C" GLAPI GLAPIENTRY GLboolean glIsEnabled(GLenum cap) {
-#endif
-    LOG_D("Use native function: %s @ %s(...)", RENDERERNAME, __FUNCTION__);
-    if (cap == GL_ALPHA_TEST) {
-        return gl_state->alpha_test_enabled ? GL_TRUE : GL_FALSE;
-    }
-    GLboolean ret = GLES.glIsEnabled(cap);
-    CHECK_GL_ERROR
-    return ret;
-}
+NATIVE_FUNCTION_HEAD(GLboolean, glIsEnabled, GLenum cap) NATIVE_FUNCTION_END(GLboolean, glIsEnabled, cap)
 NATIVE_FUNCTION_HEAD(GLboolean, glIsFramebuffer, GLuint framebuffer) NATIVE_FUNCTION_END(GLboolean, glIsFramebuffer, framebuffer)
 NATIVE_FUNCTION_HEAD(GLboolean, glIsProgram, GLuint program) NATIVE_FUNCTION_END(GLboolean, glIsProgram, program)
 NATIVE_FUNCTION_HEAD(GLboolean, glIsRenderbuffer, GLuint renderbuffer) NATIVE_FUNCTION_END(GLboolean, glIsRenderbuffer, renderbuffer)

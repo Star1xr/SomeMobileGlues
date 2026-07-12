@@ -85,17 +85,6 @@ void glGetIntegerv(GLenum pname, GLint* params) {
     case GL_VERTEX_ARRAY_BINDING:
         (*params) = (int)find_bound_array();
         break;
-    case GL_ALPHA_TEST_FUNC:
-        (*params) = gl_state->alpha_func;
-        break;
-    case GL_ALPHA_TEST_REF: {
-        GLfloat ref = gl_state->alpha_ref;
-        // Clamp to [0,1] per GL spec and convert to integer
-        if (ref < 0.0f) ref = 0.0f;
-        if (ref > 1.0f) ref = 1.0f;
-        (*params) = (GLint)(ref * 32767.0f);
-        break;
-    }
     default:
         GLES.glGetIntegerv(pname, params);
         LOG_D("  -> %d", *params)
