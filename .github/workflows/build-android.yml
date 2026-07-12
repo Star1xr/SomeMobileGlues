@@ -67,4 +67,4 @@ jobs:
         with:
           name: mobileglues-android
           path: artifacts/
-          archive: false
+          archive: true
